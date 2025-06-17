@@ -12,6 +12,8 @@ class Clerk:
     def __init__(self, servers: List[ClientEnd], cfg):
         self.servers = servers
         self.cfg = cfg
+        self.client_id = nrand()
+        self.seq_id = 0
 
         # Your definitions here.
 
@@ -27,9 +29,14 @@ class Clerk:
     # must match the declared types of the RPC handler function's
     # arguments in server.py.
     def get(self, key: str) -> str:
-        args = GetArgs(key)
-        reply = self.servers[0].call("KVServer.Get", args)
-        return reply.value
+        self.seq_id += 1
+        args = GetArgs(key, self.client_id, self.seq_id)
+        while True:
+            try:
+                reply = self.servers[0].call("KVServer.Get", args)
+                return reply.value
+            except TimeoutError:
+                continue
 
     # Shared by Put and Append.
     #
@@ -41,11 +48,16 @@ class Clerk:
     # must match the declared types of the RPC handler function's
     # arguments in server.py.
     def put_append(self, key: str, value: str, op: str) -> str:
-        args = PutAppendArgs(key, value)
-        reply = self.servers[0].call(f"KVServer.{op}", args)
-        if op == "Append":
-            return reply.value
-        return ""
+        self.seq_id += 1
+        args = PutAppendArgs(key, value, self.client_id, self.seq_id)
+        while True:
+            try:
+                reply = self.servers[0].call(f"KVServer.{op}", args)
+                if op == "Append":
+                    return reply.value
+                return ""
+            except TimeoutError:
+                continue
 
     def put(self, key: str, value: str):
         self.put_append(key, value, "Put")
