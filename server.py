@@ -35,26 +35,21 @@ class KVServer:
     def __init__(self, cfg):
         self.mu = threading.Lock()
         self.cfg = cfg
-
+        self.kv = {}
         # Your definitions here.
 
-    def Get(self, args: GetArgs):
-        reply = GetReply(None)
+    def Get(self, args: GetArgs) -> GetReply:
+        with self.mu:
+            value = self.kv.get(args.key, "")
+        return GetReply(value)
 
-        # Your code here.
+    def Put(self, args: PutAppendArgs) -> PutAppendReply:
+        with self.mu:
+            self.kv[args.key] = args.value
+        return PutAppendReply(None)
 
-        return reply
-
-    def Put(self, args: PutAppendArgs):
-        reply = PutAppendReply(None)
-
-        # Your code here.
-
-        return reply
-
-    def Append(self, args: PutAppendArgs):
-        reply = PutAppendReply(None)
-
-        # Your code here.
-
-        return reply
+    def Append(self, args: PutAppendArgs) -> PutAppendReply:
+        with self.mu:
+            old = self.kv.get(args.key, "")
+            self.kv[args.key] = old + args.value
+        return PutAppendReply(old)

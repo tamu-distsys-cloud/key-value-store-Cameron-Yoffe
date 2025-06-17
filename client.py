@@ -27,8 +27,9 @@ class Clerk:
     # must match the declared types of the RPC handler function's
     # arguments in server.py.
     def get(self, key: str) -> str:
-        # You will have to modify this function.
-        return ""
+        args = GetArgs(key)
+        reply = self.servers[0].call("KVServer.Get", args)
+        return reply.value
 
     # Shared by Put and Append.
     #
@@ -40,7 +41,10 @@ class Clerk:
     # must match the declared types of the RPC handler function's
     # arguments in server.py.
     def put_append(self, key: str, value: str, op: str) -> str:
-        # You will have to modify this function.
+        args = PutAppendArgs(key, value)
+        reply = self.servers[0].call(f"KVServer.{op}", args)
+        if op == "Append":
+            return reply.value
         return ""
 
     def put(self, key: str, value: str):
