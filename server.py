@@ -1,15 +1,13 @@
+# server.py
 import logging
 import threading
-from typing import Tuple, Any
 
 debugging = False
 
-# Use this function for debugging
 def debug(format, *args):
     if debugging:
         logging.info(format % args)
 
-# Put or Append
 class PutAppendArgs:
     def __init__(self, key, value, client_id=None, seq_id=None):
         self.key = key
@@ -18,7 +16,6 @@ class PutAppendArgs:
         self.seq_id = seq_id
 
 class PutAppendReply:
-    # Add definitions here if needed
     def __init__(self, value):
         self.value = value
 
@@ -29,21 +26,38 @@ class GetArgs:
         self.seq_id = seq_id
 
 class GetReply:
-    # Add definitions here if needed
     def __init__(self, value):
         self.value = value
 
 class KVServer:
-    def __init__(self, cfg):
+    def __init__(self, cfg, srvid):
         self.mu = threading.Lock()
         self.cfg = cfg
+        self.srvid = srvid
         # In-memory key/value store
         self.kv = {}
         # Duplicate detection state: last seq seen and its reply per client
         self.last_request = {}  # client_id -> last seq_id
         self.last_reply = {}    # client_id -> reply object
 
+    def is_responsible(self, key: str) -> bool:
+        total = len(self.cfg.kvservers)
+        # single-shard handles all keys
+        if total == 1:
+            return True
+        try:
+            shard = int(key) % total
+        except ValueError:
+            # non-integer keys go to shard 0
+            shard = 0
+        distance = (self.srvid - shard + total) % total
+        return distance < self.cfg.nreplicas
+
     def Get(self, args: GetArgs) -> GetReply:
+        # Reject if not responsible
+        if not self.is_responsible(args.key):
+            # never reply
+            threading.Event().wait()
         with self.mu:
             last_seq = self.last_request.get(args.client_id, -1)
             if args.seq_id <= last_seq:
@@ -55,6 +69,8 @@ class KVServer:
             return reply
 
     def Put(self, args: PutAppendArgs) -> PutAppendReply:
+        if not self.is_responsible(args.key):
+            threading.Event().wait()
         with self.mu:
             last_seq = self.last_request.get(args.client_id, -1)
             if args.seq_id <= last_seq:
@@ -66,6 +82,8 @@ class KVServer:
             return reply
 
     def Append(self, args: PutAppendArgs) -> PutAppendReply:
+        if not self.is_responsible(args.key):
+            threading.Event().wait()
         with self.mu:
             last_seq = self.last_request.get(args.client_id, -1)
             if args.seq_id <= last_seq:

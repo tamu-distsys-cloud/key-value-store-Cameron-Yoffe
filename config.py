@@ -1,3 +1,4 @@
+# config.py
 import os
 import random
 import math
@@ -35,6 +36,8 @@ class Config:
         self.rpcs0 = 0
         self.ops = 0
         self.nreplicas = 1
+        # track network reliability for client logic
+        self.reliable = True
 
     def cleanup(self):
         with self.mu:
@@ -70,7 +73,7 @@ class Config:
         self.nservers = nservers
         self.kvservers = [None] * nservers
         for srvid in range(nservers):
-            self.kvservers[srvid] = KVServer(self)
+            self.kvservers[srvid] = KVServer(self, srvid)
             kvsvc = Service(self.kvservers[srvid])
             srv = Server()
             srv.add_service(kvsvc)
@@ -126,7 +129,9 @@ def make_single_config(t, unreliable):
     cfg.start = time.time()
     cfg.start_cluster(1)
     cfg.net.reliable(not unreliable)
+    cfg.reliable = not unreliable
     return cfg
+
 
 def make_shard_config(t, nshards, nreplicas, unreliable):
     cfg = Config(t)
@@ -135,4 +140,5 @@ def make_shard_config(t, nshards, nreplicas, unreliable):
     cfg.start_cluster(nshards)
     cfg.nreplicas = nreplicas
     cfg.net.reliable(not unreliable)
+    cfg.reliable = not unreliable
     return cfg
