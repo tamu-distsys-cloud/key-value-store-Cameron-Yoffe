@@ -1,4 +1,5 @@
 # server.py
+# Used ChatGPT to help comment on the modifications I could make to complete part 3 of the assignment.
 import logging
 import threading
 

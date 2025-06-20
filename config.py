@@ -1,4 +1,5 @@
 # config.py
+# Used ChatGPT to help refactor this for part 3 of the assignment. 
 import os
 import random
 import math
